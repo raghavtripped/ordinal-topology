@@ -961,6 +961,8 @@ export function simulateTopNodeRemoval(
 ): Record<string, number> {
     if (participants.length <= 2) return {};
 
+    const n = participants.length;
+
     // Find top-ranked participant
     const topId = Object.entries(bordaScores).sort((a, b) => b[1] - a[1])[0]?.[0];
     if (!topId) return {};
@@ -974,10 +976,18 @@ export function simulateTopNodeRemoval(
         }));
 
     const newScores = computeBordaScores(reducedBallots, reducedParticipants);
-    const result: Record<string, number> = {};
 
+    // Normalize both old and new scores to [0,1] before comparing.
+    // Old system: each voter assigns points 1..(n-1), with (n-1) voters per participant → max = (n-1)*(n-1)
+    // New system: each voter assigns points 1..(n-2), with (n-2) voters per participant → max = (n-2)*(n-2)
+    const oldMax = (n - 1) * (n - 1) || 1;
+    const newMax = (n - 2) * (n - 2) || 1;
+
+    const result: Record<string, number> = {};
     for (const p of reducedParticipants) {
-        result[p.id] = (newScores[p.id] || 0) - (bordaScores[p.id] || 0);
+        const normalizedNew = (newScores[p.id] || 0) / newMax;
+        const normalizedOld = (bordaScores[p.id] || 0) / oldMax;
+        result[p.id] = normalizedNew - normalizedOld;
     }
     return result;
 }
@@ -1039,6 +1049,7 @@ export function computeSubgroupCohesion(
 
         let totalRank = 0;
         let count = 0;
+        const k = n - 1; // number of items each voter ranks
 
         for (const memberId of members) {
             const ballot = ballots.find(b => b.voterId === memberId);
@@ -1047,7 +1058,8 @@ export function computeSubgroupCohesion(
                 if (otherId === memberId) continue;
                 const rank = getRank(ballot, otherId);
                 if (rank > 0) {
-                    totalRank += 1 - (rank - 1) / (n - 1); // normalize: 1 = highest, 0 = lowest
+                    // Normalize to [0,1]: rank 1 → 1.0, rank k → 0.0
+                    totalRank += k > 1 ? 1 - (rank - 1) / (k - 1) : 1;
                     count++;
                 }
             }
