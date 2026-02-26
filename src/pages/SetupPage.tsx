@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Plus, Trash2, ChevronRight, RefreshCw, Sparkles } from 'lucide-react';
+import { Plus, Trash2, ChevronRight, RefreshCw, Sparkles, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { UploadModal } from '../components/UploadModal';
 
 export function SetupPage() {
     const { state, addParticipant, removeParticipant, setPage } = useApp();
     const [input, setInput] = useState('');
     const [error, setError] = useState('');
+    const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
     const handleAdd = () => {
         const trimmed = input.trim();
@@ -102,12 +104,20 @@ export function SetupPage() {
                         )}
 
                         {state.participants.length === 0 && (
-                            <button
-                                onClick={addSample}
-                                className="text-sm font-medium text-slate-400 hover:text-brand-400 transition-colors flex items-center gap-1.5"
-                            >
-                                <RefreshCw size={14} /> Load Sample (5)
-                            </button>
+                            <div className="flex items-center gap-4">
+                                <button
+                                    onClick={addSample}
+                                    className="text-sm font-medium text-slate-400 hover:text-brand-400 transition-colors flex items-center gap-1.5"
+                                >
+                                    <RefreshCw size={14} /> Load Sample (5)
+                                </button>
+                                <button
+                                    onClick={() => setIsUploadModalOpen(true)}
+                                    className="text-sm font-medium text-slate-400 hover:text-emerald-400 transition-colors flex items-center gap-1.5"
+                                >
+                                    <Upload size={14} /> Upload Data
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>
@@ -172,6 +182,11 @@ export function SetupPage() {
                 </motion.div>
 
             </main>
+
+            <UploadModal
+                isOpen={isUploadModalOpen}
+                onClose={() => setIsUploadModalOpen(false)}
+            />
         </motion.div>
     );
 }

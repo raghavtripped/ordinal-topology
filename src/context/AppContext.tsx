@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import type { AppState, Ballot } from '../types';
+import type { AppState, Ballot, Participant } from '../types';
 import { saveState, loadState } from '../lib/storage';
 
 interface AppContextType {
@@ -8,6 +8,7 @@ interface AppContextType {
     removeParticipant: (id: string) => void;
     submitBallot: (ballot: Ballot) => void;
     reset: () => void;
+    loadData: (data: { participants: Participant[], ballots: Ballot[] }) => void;
     page: 'setup' | 'ranking' | 'results';
     setPage: (page: 'setup' | 'ranking' | 'results') => void;
 }
@@ -63,8 +64,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setPage('setup');
     }, []);
 
+    const loadData = useCallback(({ participants, ballots }: { participants: Participant[], ballots: Ballot[] }) => {
+        setState({ participants, ballots });
+        setPage('results');
+    }, []);
+
     return (
-        <AppContext.Provider value={{ state, addParticipant, removeParticipant, submitBallot, reset, page, setPage }}>
+        <AppContext.Provider value={{ state, addParticipant, removeParticipant, submitBallot, reset, loadData, page, setPage }}>
             {children}
         </AppContext.Provider>
     );
