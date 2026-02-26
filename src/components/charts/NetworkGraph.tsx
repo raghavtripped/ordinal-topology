@@ -18,9 +18,10 @@ export interface NetworkGraphProps {
     sizeBy?: string;
     width?: number;
     height?: number;
+    staticMode?: boolean;
 }
 
-export function NetworkGraph({ participants, communities, betweenness, condorcetCycles, pairwiseMatrix }: NetworkGraphProps) {
+export function NetworkGraph({ participants, communities, betweenness, condorcetCycles, pairwiseMatrix, staticMode }: NetworkGraphProps) {
     const svgRef = useRef<SVGSVGElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -144,6 +145,12 @@ export function NetworkGraph({ participants, communities, betweenness, condorcet
             .force('x', d3.forceX(currentWidth / 2).strength(0.05))
             .force('y', d3.forceY(currentHeight / 2).strength(0.05));
 
+        if (staticMode) {
+            // Fast-forward simulation synchronously for static export
+            simulation.stop();
+            for (let i = 0; i < 300; i++) simulation.tick();
+        }
+
         // Draw edges
         const link = g.append('g')
             .selectAll('path')
@@ -256,7 +263,7 @@ export function NetworkGraph({ participants, communities, betweenness, condorcet
             .style('text-shadow', '0 2px 4px rgba(0,0,0,0.8)');
 
         // Simulation ticks
-        simulation.on('tick', () => {
+        const updatePositions = () => {
             link.attr('d', (d: any) => {
                 // Curvature for edges
                 const dx = d.target.x - d.source.x;
@@ -271,9 +278,16 @@ export function NetworkGraph({ participants, communities, betweenness, condorcet
             });
 
             nodeGroup.attr('transform', (d: any) => `translate(${d.x},${d.y})`);
-        });
+        };
+
+        if (staticMode) {
+            updatePositions();
+        } else {
+            simulation.on('tick', updatePositions);
+        }
 
         function dragstarted(event: any) {
+            if (staticMode) return;
             if (!event.active) simulation.alphaTarget(0.3).restart();
             event.subject.fx = event.subject.x;
             event.subject.fy = event.subject.y;

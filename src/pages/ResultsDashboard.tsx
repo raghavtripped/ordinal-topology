@@ -10,14 +10,14 @@ import {
     MetricBarChart,
     PolarizationChart,
 } from '../components/charts/RechartsCharts';
-import { explainMetric, generateNarrativeSummary } from '../lib/explanations';
+import { explainMetric, generateNarrativeSummary, explanations } from '../lib/explanations';
 import {
     ChevronLeft, Download, FileText, Image,
     Network, Scale, Zap, Brain, Shield, Info, AlertCircle,
     CheckCircle, XCircle, TrendingUp, TrendingDown, LayoutDashboard
 } from 'lucide-react';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import html2canvas from 'html2canvas-pro';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // ── Explanation Panel (Tooltip) ────────────────────────────────
@@ -99,8 +99,10 @@ export function ResultsDashboard() {
     const { participants, ballots } = state;
     const analytics = useAnalytics(participants, ballots);
     const [activeTab, setActiveTab] = useState('overview');
+    const [isExporting, setIsExporting] = useState(false);
     const dashboardRef = useRef<HTMLDivElement>(null);
     const networkRef = useRef<HTMLDivElement>(null);
+    const exportContainerRef = useRef<HTMLDivElement>(null);
 
     const nameMap = Object.fromEntries(participants.map(p => [p.id, p.name]));
 
@@ -115,12 +117,37 @@ export function ResultsDashboard() {
     }, [participants, ballots, analytics]);
 
     const exportPDF = useCallback(async () => {
-        if (!dashboardRef.current) return;
-        const canvas = await html2canvas(dashboardRef.current, { scale: 1.5, useCORS: true, backgroundColor: '#020617' });
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [canvas.width, canvas.height] });
-        pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+        setIsExporting(true);
+        // Wait for React to render the hidden export container
+        await new Promise(r => setTimeout(r, 100));
+
+        if (!exportContainerRef.current) {
+            setIsExporting(false);
+            return;
+        }
+
+        const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [1200, 800] });
+        const tabs = Array.from(exportContainerRef.current.children) as HTMLElement[];
+
+        for (let i = 0; i < tabs.length; i++) {
+            const tabElement = tabs[i];
+            const canvas = await html2canvas(tabElement, { scale: 1.5, useCORS: true, backgroundColor: '#020617' });
+            const imgData = canvas.toDataURL('image/png');
+
+            const orientation = canvas.width > canvas.height ? 'landscape' : 'portrait';
+
+            if (i > 0) pdf.addPage([canvas.width, canvas.height], orientation);
+            // If it's the first page we explicitly set the size so it doesn't default to a4 wrongly if dimensions differ
+            else if (i === 0) {
+                pdf.deletePage(1);
+                pdf.addPage([canvas.width, canvas.height], orientation);
+                pdf.setPage(1);
+            }
+            pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+        }
+
         pdf.save('ordinal_topology_report.pdf');
+        setIsExporting(false);
     }, []);
 
     const exportNetworkPNG = useCallback(async () => {
@@ -199,8 +226,8 @@ export function ResultsDashboard() {
                         <button onClick={exportJSON} className="flex items-center gap-1.5 text-xs font-semibold bg-slate-900/80 hover:bg-slate-800 text-brand-400 px-3 py-2 rounded-lg border border-slate-800 hover:border-brand-500/50 hover:shadow-[0_0_10px_rgba(56,189,248,0.2)] transition-all">
                             <Download size={14} /> JSON
                         </button>
-                        <button onClick={exportPDF} className="flex items-center gap-1.5 text-xs font-semibold bg-slate-900/80 hover:bg-slate-800 text-brand-400 px-3 py-2 rounded-lg border border-slate-800 hover:border-brand-500/50 hover:shadow-[0_0_10px_rgba(56,189,248,0.2)] transition-all">
-                            <FileText size={14} /> PDF
+                        <button onClick={exportPDF} disabled={isExporting} className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border transition-all ${isExporting ? 'bg-slate-800 text-slate-500 border-slate-700 cursor-not-allowed' : 'bg-slate-900/80 hover:bg-slate-800 text-brand-400 border-slate-800 hover:border-brand-500/50 hover:shadow-[0_0_10px_rgba(56,189,248,0.2)]'}`}>
+                            <FileText size={14} /> {isExporting ? 'Exporting...' : 'PDF'}
                         </button>
                         <button onClick={exportNetworkPNG} className="flex items-center gap-1.5 text-xs font-semibold bg-slate-900/80 hover:bg-slate-800 text-brand-400 px-3 py-2 rounded-lg border border-slate-800 hover:border-brand-500/50 hover:shadow-[0_0_10px_rgba(56,189,248,0.2)] transition-all">
                             <Image size={14} /> PNG
@@ -254,6 +281,61 @@ export function ResultsDashboard() {
                     </motion.div>
                 </AnimatePresence>
             </main>
+            {/* Hidden Export Container */}
+            {isExporting && (
+                <div ref={exportContainerRef} className="absolute left-[-9999px] top-[-9999px] flex flex-col gap-10">
+                    <div className="p-8 bg-[#020617] w-[1200px]">
+                        <h2 className="text-2xl font-bold text-white mb-6">Overview</h2>
+                        <OverviewTab analytics={analytics} nameMap={nameMap} narrative={narrative} />
+                    </div>
+                    <div className="p-8 bg-[#020617] w-[1200px]">
+                        <h2 className="text-2xl font-bold text-white mb-6">Hierarchy</h2>
+                        <HierarchyTab analytics={analytics} nameMap={nameMap} participants={participants} />
+                    </div>
+                    <div className="p-8 bg-[#020617] w-[1200px]">
+                        <h2 className="text-2xl font-bold text-white mb-6">Network</h2>
+                        <NetworkTab analytics={analytics} participants={participants} ballots={ballots} nameMap={nameMap} networkRef={networkRef} staticMode={true} />
+                    </div>
+                    <div className="p-8 bg-[#020617] w-[1200px]">
+                        <h2 className="text-2xl font-bold text-white mb-6">Inequality</h2>
+                        <InequalityTab analytics={analytics} nameMap={nameMap} participants={participants} />
+                    </div>
+                    <div className="p-8 bg-[#020617] w-[1200px]">
+                        <h2 className="text-2xl font-bold text-white mb-6">Stability</h2>
+                        <StabilityTab analytics={analytics} nameMap={nameMap} participants={participants} />
+                    </div>
+                    <div className="p-8 bg-[#020617] w-[1200px]">
+                        <h2 className="text-2xl font-bold text-white mb-6">Psychology</h2>
+                        <PsychologyTab analytics={analytics} nameMap={nameMap} participants={participants} />
+                    </div>
+                    <div className="p-8 bg-[#020617] w-[1200px]">
+                        <h2 className="text-2xl font-bold text-white mb-6">Simulation</h2>
+                        <SimulationTab analytics={analytics} nameMap={nameMap} participants={participants} />
+                    </div>
+                    {/* Glossary */}
+                    {Object.entries(explanations).reduce((acc: [string, any][][], curr, i) => {
+                        const chunkIndex = Math.floor(i / 8);
+                        if (!acc[chunkIndex]) acc[chunkIndex] = [];
+                        acc[chunkIndex].push(curr);
+                        return acc;
+                    }, []).map((chunk, i) => (
+                        <div key={`glossary-${i}`} className="p-8 bg-[#020617] text-white w-[1200px]">
+                            <h2 className="text-2xl font-bold text-white mb-8 border-b border-brand-500/30 pb-4">Glossary of Metrics {i > 0 ? '(Cont.)' : ''}</h2>
+                            <div className="grid grid-cols-2 gap-8 text-sm">
+                                {chunk.map(([key, ex]) => (
+                                    <div key={key} className="glass-card bg-slate-900/40 p-5 rounded-xl border border-slate-800 break-inside-avoid">
+                                        <div className="font-bold text-brand-400 uppercase tracking-wider mb-2">{key.replace(/([A-Z])/g, ' $1').trim()}</div>
+                                        <div className="mb-3"><span className="font-bold text-slate-300">Definition:</span> <span className="text-slate-400">{ex.definition}</span></div>
+                                        <div className="mb-3"><span className="font-bold text-slate-300">Why it matters:</span> <span className="text-slate-400">{ex.whyMatters}</span></div>
+                                        {ex.highMeaning && <div className="mb-1.5"><span className="text-emerald-400 font-bold">High:</span> <span className="text-slate-400">{ex.highMeaning}</span></div>}
+                                        {ex.lowMeaning && <div><span className="text-amber-400 font-bold">Low:</span> <span className="text-slate-400">{ex.lowMeaning}</span></div>}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }
@@ -473,7 +555,7 @@ function HierarchyTab({ analytics, nameMap, participants }: any) {
     );
 }
 
-function NetworkTab({ analytics, participants, ballots, nameMap, networkRef }: any) {
+function NetworkTab({ analytics, participants, ballots, nameMap, networkRef, staticMode }: any) {
     const [showCycles, setShowCycles] = useState(true);
 
     return (
@@ -505,6 +587,7 @@ function NetworkTab({ analytics, participants, ballots, nameMap, networkRef }: a
                         height={500}
                         showCycles={showCycles}
                         sizeBy="betweenness"
+                        staticMode={staticMode}
                     />
                 </div>
 

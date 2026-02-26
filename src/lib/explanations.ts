@@ -9,7 +9,7 @@ export interface MetricExplanation {
     lowMeaning: string;
 }
 
-const explanations: Record<string, MetricExplanation> = {
+export const explanations: Record<string, MetricExplanation> = {
     borda: {
         definition: 'Borda count assigns n−k points to a candidate ranked k-th by each voter. Total Borda score aggregates preferences across all ballots.',
         whyMatters: 'Provides a cardinal summary of collective preference strength, revealing distributed support beyond binary win/loss.',
