@@ -57,9 +57,11 @@ export function NetworkGraph({ participants, communities, betweenness, condorcet
                     const winsI = pairwiseMatrix[i] && pairwiseMatrix[i][j] ? pairwiseMatrix[i][j] : 0;
                     const winsJ = pairwiseMatrix[j] && pairwiseMatrix[j][i] ? pairwiseMatrix[j][i] : 0;
                     if (winsI > winsJ) {
-                        links.push({ source: participants[i].id, target: participants[j].id, weight: 1 });
-                    } else if (winsJ > winsI) {
+                        // i is majority-preferred: edge from loser (j) to winner (i)
                         links.push({ source: participants[j].id, target: participants[i].id, weight: 1 });
+                    } else if (winsJ > winsI) {
+                        // j is majority-preferred: edge from loser (i) to winner (j)
+                        links.push({ source: participants[i].id, target: participants[j].id, weight: 1 });
                     }
                 }
             }

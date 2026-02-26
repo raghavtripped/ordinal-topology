@@ -393,12 +393,13 @@ export function computeBetweennessCentrality(
     const majority = numBallots / 2;
     const betweenness: number[] = Array(n).fill(0);
 
-    // Build adjacency list from majority graph
+    // Build adjacency list from majority graph (loser → winner direction)
     const adj: number[][] = Array.from({ length: n }, () => []);
     for (let i = 0; i < n; i++) {
         for (let j = 0; j < n; j++) {
             if (i !== j && pairwiseMatrix[i][j] > majority) {
-                adj[i].push(j);
+                // i beats j: edge from loser j → winner i
+                adj[j].push(i);
             }
         }
     }
