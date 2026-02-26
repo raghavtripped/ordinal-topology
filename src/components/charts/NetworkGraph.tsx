@@ -20,7 +20,7 @@ export interface NetworkGraphProps {
     height?: number;
 }
 
-export function NetworkGraph({ participants, communities, betweenness, condorcetCycles }: NetworkGraphProps) {
+export function NetworkGraph({ participants, communities, betweenness, condorcetCycles, pairwiseMatrix }: NetworkGraphProps) {
     const svgRef = useRef<SVGSVGElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -47,11 +47,20 @@ export function NetworkGraph({ participants, communities, betweenness, condorcet
             };
         });
 
-        // Reconstruct links from condorcetCycles or derive basic links from pairwise
-        // For visual clarity, we'll build links strictly for edges in a cycle to demonstrate the cyclic graphs, 
-        //, or optionally all non-zero pairwise edges if preferred.
-        // As a fallback, we extract pairs from cycle.
+        // Reconstruct links from pairwise matrix (majority preference graph)
         const links: { source: string; target: string; weight: number }[] = [];
+
+        for (let i = 0; i < participants.length; i++) {
+            for (let j = i + 1; j < participants.length; j++) {
+                const winsI = pairwiseMatrix[i][j];
+                const winsJ = pairwiseMatrix[j][i];
+                if (winsI > winsJ) {
+                    links.push({ source: participants[i].id, target: participants[j].id, weight: 1 });
+                } else if (winsJ > winsI) {
+                    links.push({ source: participants[j].id, target: participants[i].id, weight: 1 });
+                }
+            }
+        }
 
         const maxWeight = 1;
         const maxBetweenness = Math.max(...Object.values(betweenness), 0.01);
@@ -63,7 +72,6 @@ export function NetworkGraph({ participants, communities, betweenness, condorcet
                 const s = cycle[i];
                 const t = cycle[(i + 1) % cycle.length];
                 cycleEdgeSet.add(`${s}-${t}`);
-                links.push({ source: s, target: t, weight: 1 });
             }
         });
 
