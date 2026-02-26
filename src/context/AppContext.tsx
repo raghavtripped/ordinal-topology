@@ -21,15 +21,15 @@ const DEFAULT_STATE: AppState = { participants: [], ballots: [] };
 function getInitialStateAndPage() {
     // 1. Check for URL Hash Archive (Shared Link)
     try {
-        if (window.location.hash.startsWith('#archive=')) {
-            const compressed = window.location.hash.substring(9);
-            const decompressed = LZString.decompressFromEncodedURIComponent(compressed);
-            if (decompressed) {
-                const parsed = JSON.parse(decompressed);
-                if (parsed.participants && parsed.ballots) {
-                    // Clean up URL without triggering navigation
-                    window.history.replaceState(null, '', window.location.pathname);
-                    return { state: parsed, page: 'results' as const };
+        if (window.location.hash.includes('#archive=')) {
+            const compressed = window.location.hash.split('#archive=')[1];
+            if (compressed) {
+                const decompressed = LZString.decompressFromEncodedURIComponent(compressed);
+                if (decompressed) {
+                    const parsed = JSON.parse(decompressed);
+                    if (parsed.participants && parsed.ballots) {
+                        return { state: parsed, page: 'results' as const };
+                    }
                 }
             }
         }
