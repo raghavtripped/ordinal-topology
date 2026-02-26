@@ -144,15 +144,17 @@ export function findCondorcetCycles(
     const majority = numBallots / 2;
     const cycles: string[][] = [];
 
-    // Check for 3-cycles: a→b, b→c, c→a
+    // Check for 3-cycles using canonical order (a < b < c) to avoid duplicates
     for (let a = 0; a < n; a++) {
-        for (let b = 0; b < n; b++) {
-            if (b === a) continue;
-            if (matrix[a][b] <= majority) continue;
-            for (let c = 0; c < n; c++) {
-                if (c === a || c === b) continue;
-                if (matrix[b][c] > majority && matrix[c][a] > majority) {
+        for (let b = a + 1; b < n; b++) {
+            for (let c = b + 1; c < n; c++) {
+                // Check direction 1: a→b→c→a
+                if (matrix[a][b] > majority && matrix[b][c] > majority && matrix[c][a] > majority) {
                     cycles.push([ids[a], ids[b], ids[c]]);
+                }
+                // Check direction 2: a→c→b→a (reverse cycle)
+                else if (matrix[a][c] > majority && matrix[c][b] > majority && matrix[b][a] > majority) {
+                    cycles.push([ids[a], ids[c], ids[b]]);
                 }
             }
         }
@@ -168,28 +170,41 @@ export function computeKendallW(
     ballots: Ballot[],
     participants: Participant[]
 ): number {
-    const n = participants.length; // number of items being ranked
+    const n = participants.length; // total participants
+    const k = n - 1; // number of items each rater actually ranks (excludes self)
     const m = ballots.length; // number of raters
 
-    if (m < 2 || n < 2) return 0;
+    if (m < 2 || k < 2) return 0;
 
     const ids = getIds(participants);
 
     // Compute sum of ranks for each participant across all ballots
+    // Each participant is ranked by m-1 raters (every rater except themselves)
+    // but we'll just sum across all ballots that include them
     const rankSums: number[] = Array(n).fill(0);
+    const rankCounts: number[] = Array(n).fill(0);
     for (let j = 0; j < n; j++) {
         for (const ballot of ballots) {
+            if (ballot.voterId === ids[j]) continue; // this voter doesn't rank themselves
             const rank = getRank(ballot, ids[j]);
-            if (rank > 0) rankSums[j] += rank;
+            if (rank > 0) {
+                rankSums[j] += rank;
+                rankCounts[j]++;
+            }
         }
     }
 
-    const meanRankSum = (m * (n + 1)) / 2;
+    // Each item is ranked by (m-1) raters (everyone except the item's own ballot)
+    // For items ranked by m-1 raters with ranks 1..k where k = n-1:
+    // Mean rank sum per item = (m-1) * (k+1) / 2 = (m-1) * n / 2
+    const effectiveRaters = m - 1; // each item is ranked by m-1 raters
+    const meanRankSum = effectiveRaters * (k + 1) / 2;
+
     // S = sum of squared deviations from the mean rank sum
     const S = rankSums.reduce((acc, r) => acc + Math.pow(r - meanRankSum, 2), 0);
 
-    // W = 12S / (m² * (n³ - n))
-    const W = (12 * S) / (m * m * (Math.pow(n, 3) - n));
+    // W = 12S / (m_eff² * (k³ - k)) where m_eff = number of raters per item, k = items ranked
+    const W = (12 * S) / (effectiveRaters * effectiveRaters * (Math.pow(k, 3) - k));
     return Math.max(0, Math.min(1, W));
 }
 
@@ -658,26 +673,31 @@ export function computeSpearmanConformity(
     bordaScores: Record<string, number>
 ): Record<string, number> {
     const ids = getIds(participants);
-    // Derive group mean ranking from Borda positions
+    // Derive group consensus ordering from Borda scores (descending)
     const groupOrder = [...ids].sort((a, b) => (bordaScores[b] || 0) - (bordaScores[a] || 0));
-    const groupRank: Record<string, number> = {};
-    groupOrder.forEach((id, i) => { groupRank[id] = i + 1; });
 
     const result: Record<string, number> = {};
     for (const ballot of ballots) {
         const m = ballot.ranking.length;
         if (m < 2) { result[ballot.voterId] = 0; continue; }
 
-        // Voter's ranking of others (1-based)
+        // Voter's ranking of others (1-based, range 1..m)
         const voterRank: Record<string, number> = {};
         ballot.ranking.forEach((id, i) => { voterRank[id] = i + 1; });
+
+        // Re-project group consensus to only the items this voter ranked
+        // This ensures both scales use 1..m
+        const votedIds = ballot.ranking;
+        const groupSubset = groupOrder.filter(id => votedIds.includes(id));
+        const groupRankForVoter: Record<string, number> = {};
+        groupSubset.forEach((id, i) => { groupRankForVoter[id] = i + 1; });
 
         // Spearman's rho = 1 - (6 * sum(d²)) / (m * (m² - 1))
         let sumDsq = 0;
         let count = 0;
         for (const id of ballot.ranking) {
-            if (!groupRank[id]) continue;
-            const d = voterRank[id] - groupRank[id];
+            if (!groupRankForVoter[id]) continue;
+            const d = voterRank[id] - groupRankForVoter[id];
             sumDsq += d * d;
             count++;
         }
@@ -798,10 +818,11 @@ export function computeIndividualEntropy(
     n: number
 ): Record<string, number> {
     const result: Record<string, number> = {};
+    const k = n - 1; // ranks go from 1 to n-1 (voters don't rank themselves)
     for (const [id, ranks] of Object.entries(receivedRanks)) {
-        // Build histogram of ranks 1..n-1
-        const hist = Array(n).fill(0);
-        for (const r of ranks) { if (r >= 1 && r <= n) hist[r - 1]++; }
+        // Build histogram of ranks 1..k
+        const hist = Array(k).fill(0);
+        for (const r of ranks) { if (r >= 1 && r <= k) hist[r - 1]++; }
         result[id] = computeEntropy(hist);
     }
     return result;
