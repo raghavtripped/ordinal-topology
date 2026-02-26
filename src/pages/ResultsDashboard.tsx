@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAnalytics } from '../hooks/useAnalytics';
 import { NetworkGraph } from '../components/charts/NetworkGraph';
@@ -14,30 +14,50 @@ import { explainMetric, generateNarrativeSummary, explanations } from '../lib/ex
 import {
     ChevronLeft, Download, FileText, Image, Link as LinkIcon, Check,
     Network, Scale, Zap, Brain, Shield, Info, AlertCircle,
-    CheckCircle, XCircle, TrendingUp, TrendingDown, LayoutDashboard
+    CheckCircle, XCircle, TrendingUp, TrendingDown, LayoutDashboard,
+    Menu, X
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas-pro';
 import * as LZString from 'lz-string';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// ── Explanation Panel (Tooltip) ────────────────────────────────
+// ── Explanation Panel (Tooltip — click-to-toggle for mobile) ────
 function ExplainPanel({ metricKey }: { metricKey: string }) {
+    const [open, setOpen] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
     const ex = explainMetric(metricKey);
+
+    // Close on outside click
+    useEffect(() => {
+        if (!open) return;
+        const handler = (e: MouseEvent | TouchEvent) => {
+            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+        };
+        document.addEventListener('mousedown', handler);
+        document.addEventListener('touchstart', handler);
+        return () => { document.removeEventListener('mousedown', handler); document.removeEventListener('touchstart', handler); };
+    }, [open]);
+
     if (!ex) return null;
     return (
-        <div className="mt-2 text-right">
-            <div className="relative group inline-block z-[100]">
-                <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-brand-400 transition-colors cursor-help">
+        <div className="mt-2 text-right" ref={ref}>
+            <div className="relative inline-block z-[100]">
+                <button
+                    onClick={() => setOpen(v => !v)}
+                    className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-brand-400 transition-colors cursor-pointer"
+                >
                     <Info size={14} /> What does this mean?
-                </span>
-                <div className="absolute right-0 top-full mt-2 w-64 sm:w-80 p-4 bg-slate-900/95 border border-brand-500/40 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all text-xs backdrop-blur-md font-sans text-left pointer-events-none z-[100]">
-                    <p className="mb-2 text-sm leading-relaxed"><strong className="text-white block mb-0.5">Definition</strong> <span className="text-slate-300">{ex.definition}</span></p>
-                    <p className="mb-2 text-sm leading-relaxed"><strong className="text-white block mb-0.5">Why it matters</strong> <span className="text-slate-300">{ex.whyMatters}</span></p>
-                    {ex.highMeaning && <p className="mb-1.5 text-sm"><strong className="text-emerald-400">High:</strong> <span className="text-slate-300">{ex.highMeaning}</span></p>}
-                    {ex.lowMeaning && <p className="mb-1 text-sm"><strong className="text-amber-400">Low:</strong> <span className="text-slate-300">{ex.lowMeaning}</span></p>}
-                    <div className="absolute -top-4 right-4 border-8 border-transparent border-b-brand-500/40"></div>
-                </div>
+                </button>
+                {open && (
+                    <div className="absolute right-0 top-full mt-2 w-[calc(100vw-3rem)] max-w-80 p-4 bg-slate-900/95 border border-brand-500/40 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] text-xs backdrop-blur-md font-sans text-left z-[100]">
+                        <p className="mb-2 text-sm leading-relaxed"><strong className="text-white block mb-0.5">Definition</strong> <span className="text-slate-300">{ex.definition}</span></p>
+                        <p className="mb-2 text-sm leading-relaxed"><strong className="text-white block mb-0.5">Why it matters</strong> <span className="text-slate-300">{ex.whyMatters}</span></p>
+                        {ex.highMeaning && <p className="mb-1.5 text-sm"><strong className="text-emerald-400">High:</strong> <span className="text-slate-300">{ex.highMeaning}</span></p>}
+                        {ex.lowMeaning && <p className="mb-1 text-sm"><strong className="text-amber-400">Low:</strong> <span className="text-slate-300">{ex.lowMeaning}</span></p>}
+                        <div className="absolute -top-4 right-4 border-8 border-transparent border-b-brand-500/40"></div>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -54,10 +74,13 @@ const TABS = [
     { id: 'simulation', label: 'Simulation', icon: Zap },
 ];
 
-// ── Metric card ────────────────────────────────────────────────
+// ── Metric card (click-to-toggle tooltip for mobile) ───────────
 function MetricCard({ label, value, sub, highlight, metricKey }: {
     label: string; value: string | React.ReactNode; sub?: string; highlight?: 'good' | 'warn' | 'bad'; metricKey?: string;
 }) {
+    const [tipOpen, setTipOpen] = useState(false);
+    const cardRef = useRef<HTMLDivElement>(null);
+
     const border = highlight === 'good' ? 'border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]' :
         highlight === 'bad' ? 'border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.15)]' :
             highlight === 'warn' ? 'border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.15)]' : 'border-slate-800';
@@ -68,21 +91,32 @@ function MetricCard({ label, value, sub, highlight, metricKey }: {
 
     const ex = metricKey ? explainMetric(metricKey) : null;
 
+    // Close on outside click
+    useEffect(() => {
+        if (!tipOpen) return;
+        const handler = (e: MouseEvent | TouchEvent) => {
+            if (cardRef.current && !cardRef.current.contains(e.target as Node)) setTipOpen(false);
+        };
+        document.addEventListener('mousedown', handler);
+        document.addEventListener('touchstart', handler);
+        return () => { document.removeEventListener('mousedown', handler); document.removeEventListener('touchstart', handler); };
+    }, [tipOpen]);
+
     return (
-        <div className={`glass-card p-5 ${border} hover:-translate-y-1 transition-transform relative group/card hover:z-50`}>
+        <div ref={cardRef} className={`glass-card p-4 sm:p-5 ${border} hover:-translate-y-1 transition-transform relative`}>
             <div className="flex justify-between items-start mb-2">
                 <div className="text-xs font-bold tracking-wider text-slate-500 uppercase">{label}</div>
                 {ex && (
-                    <div className="text-slate-500 hover:text-brand-400 cursor-help transition-colors">
+                    <button onClick={() => setTipOpen(v => !v)} className="text-slate-500 hover:text-brand-400 cursor-pointer transition-colors">
                         <Info size={14} />
-                    </div>
+                    </button>
                 )}
             </div>
-            <div className={`text-2xl font-bold ${valueColor}`}>{value}</div>
+            <div className={`text-xl sm:text-2xl font-bold ${valueColor}`}>{value}</div>
             {sub && <div className="text-xs text-slate-400 mt-2 font-medium">{sub}</div>}
 
-            {ex && (
-                <div className="absolute left-0 top-full mt-3 w-64 p-4 bg-slate-900/95 border border-brand-500/40 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] opacity-0 invisible group-hover/card:opacity-100 group-hover/card:visible transition-all text-xs backdrop-blur-md font-sans text-left pointer-events-none z-[100]">
+            {ex && tipOpen && (
+                <div className="absolute left-0 right-0 sm:right-auto top-full mt-3 mx-2 sm:mx-0 sm:w-64 p-4 bg-slate-900/95 border border-brand-500/40 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] text-xs backdrop-blur-md font-sans text-left z-[100]">
                     <p className="mb-2 text-sm leading-relaxed"><strong className="text-white block mb-0.5">Definition</strong> <span className="text-slate-300">{ex.definition}</span></p>
                     <p className="mb-2 text-sm leading-relaxed"><strong className="text-white block mb-0.5">Why it matters</strong> <span className="text-slate-300">{ex.whyMatters}</span></p>
                     {ex.highMeaning && <p className="mb-1.5 text-sm"><strong className="text-emerald-400">High:</strong> <span className="text-slate-300">{ex.highMeaning}</span></p>}
@@ -102,9 +136,22 @@ export function ResultsDashboard() {
     const [activeTab, setActiveTab] = useState('overview');
     const [isExporting, setIsExporting] = useState(false);
     const [copiedShareLink, setCopiedShareLink] = useState(false);
+    const [menuOpen, setMenuOpen] = useState(false);
     const dashboardRef = useRef<HTMLDivElement>(null);
     const networkRef = useRef<HTMLDivElement>(null);
     const exportContainerRef = useRef<HTMLDivElement>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    // Close hamburger menu on outside click
+    useEffect(() => {
+        if (!menuOpen) return;
+        const handler = (e: MouseEvent | TouchEvent) => {
+            if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+        };
+        document.addEventListener('mousedown', handler);
+        document.addEventListener('touchstart', handler);
+        return () => { document.removeEventListener('mousedown', handler); document.removeEventListener('touchstart', handler); };
+    }, [menuOpen]);
 
     const nameMap = Object.fromEntries(participants.map(p => [p.id, p.name]));
 
@@ -220,25 +267,26 @@ export function ResultsDashboard() {
 
     return (
         <div className="min-h-screen bg-transparent pb-24">
-            {/* Minimal Dashboard Header */}
+            {/* Dashboard Header */}
             <header className="sticky top-0 z-40 glass-panel border-x-0 border-t-0 border-b border-slate-800/50">
-                <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                        <button onClick={() => setPage('ranking')} className="text-slate-400 hover:text-white flex items-center gap-1.5 text-sm font-medium transition-colors bg-slate-900/50 px-3 py-1.5 rounded-lg border border-slate-800/50 hover:border-slate-700">
-                            <ChevronLeft size={16} /> Ballots
+                <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-2 sm:gap-4">
+                    <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+                        <button onClick={() => setPage('ranking')} className="text-slate-400 hover:text-white flex items-center gap-1 text-sm font-medium transition-colors bg-slate-900/50 px-2 sm:px-3 py-1.5 rounded-lg border border-slate-800/50 hover:border-slate-700 shrink-0">
+                            <ChevronLeft size={16} /> <span className="hidden sm:inline">Ballots</span>
                         </button>
-                        <div className="h-4 w-px bg-slate-800"></div>
-                        <div>
-                            <h1 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+                        <div className="h-4 w-px bg-slate-800 hidden sm:block"></div>
+                        <div className="min-w-0">
+                            <h1 className="text-base sm:text-lg font-bold text-white tracking-tight flex items-center gap-2 truncate">
                                 Topology <span className="text-brand-400">Dashboard</span>
                             </h1>
-                            <p className="text-xs font-mono text-slate-500 mt-0.5 tracking-wider">
-                                SYS.ANALYSIS // N={participants.length}
+                            <p className="text-[10px] sm:text-xs font-mono text-slate-500 mt-0.5 tracking-wider">
+                                N={participants.length}
                             </p>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+                    {/* Desktop export buttons */}
+                    <div className="hidden md:flex items-center gap-2">
                         <button onClick={exportJSON} className="flex items-center gap-1.5 text-xs font-semibold bg-slate-900/80 hover:bg-slate-800 text-brand-400 px-3 py-2 rounded-lg border border-slate-800 hover:border-brand-500/50 hover:shadow-[0_0_10px_rgba(56,189,248,0.2)] transition-all">
                             <Download size={14} /> JSON
                         </button>
@@ -256,11 +304,50 @@ export function ResultsDashboard() {
                             Restart
                         </button>
                     </div>
+
+                    {/* Mobile hamburger */}
+                    <div className="md:hidden relative" ref={menuRef}>
+                        <button
+                            onClick={() => setMenuOpen(v => !v)}
+                            className="text-slate-400 hover:text-white p-2 rounded-lg border border-slate-800/50 bg-slate-900/50 transition-colors"
+                        >
+                            {menuOpen ? <X size={18} /> : <Menu size={18} />}
+                        </button>
+                        <AnimatePresence>
+                            {menuOpen && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                                    transition={{ duration: 0.15 }}
+                                    className="absolute right-0 top-full mt-2 w-48 bg-slate-900/95 backdrop-blur-lg border border-slate-700/60 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.6)] p-2 flex flex-col gap-1 z-50"
+                                >
+                                    <button onClick={() => { exportJSON(); setMenuOpen(false); }} className="flex items-center gap-2 text-sm font-medium text-brand-400 px-3 py-2.5 rounded-lg hover:bg-slate-800/80 transition-colors w-full">
+                                        <Download size={15} /> Export JSON
+                                    </button>
+                                    <button onClick={() => { exportPDF(); setMenuOpen(false); }} disabled={isExporting} className="flex items-center gap-2 text-sm font-medium text-brand-400 px-3 py-2.5 rounded-lg hover:bg-slate-800/80 transition-colors w-full disabled:text-slate-500">
+                                        <FileText size={15} /> {isExporting ? 'Exporting...' : 'Export PDF'}
+                                    </button>
+                                    <button onClick={() => { exportNetworkPNG(); setMenuOpen(false); }} className="flex items-center gap-2 text-sm font-medium text-brand-400 px-3 py-2.5 rounded-lg hover:bg-slate-800/80 transition-colors w-full">
+                                        <Image size={15} /> Export PNG
+                                    </button>
+                                    <button onClick={() => { handleShareLink(); setMenuOpen(false); }} className={`flex items-center gap-2 text-sm font-medium px-3 py-2.5 rounded-lg hover:bg-slate-800/80 transition-colors w-full ${copiedShareLink ? 'text-emerald-400' : 'text-brand-400'}`}>
+                                        {copiedShareLink ? <Check size={15} /> : <LinkIcon size={15} />}
+                                        {copiedShareLink ? 'Copied!' : 'Copy Link'}
+                                    </button>
+                                    <div className="border-t border-slate-800/50 my-1"></div>
+                                    <button onClick={() => { reset(); setMenuOpen(false); }} className="flex items-center gap-2 text-sm font-medium text-red-400 px-3 py-2.5 rounded-lg hover:bg-red-500/10 transition-colors w-full">
+                                        Restart
+                                    </button>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
                 </div>
 
-                {/* Tab Navigation */}
-                <div className="max-w-7xl mx-auto px-6">
-                    <div className="flex gap-2 overflow-x-auto py-3 no-scrollbar border-t border-slate-800/30">
+                {/* Tab Navigation — scrollable, icon-only on very small screens */}
+                <div className="max-w-7xl mx-auto px-2 sm:px-6">
+                    <div className="flex gap-1 sm:gap-2 overflow-x-auto py-2 sm:py-3 no-scrollbar border-t border-slate-800/30">
                         {TABS.map(tab => {
                             const Icon = tab.icon;
                             const isActive = activeTab === tab.id;
@@ -268,7 +355,7 @@ export function ResultsDashboard() {
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
-                                    className={`relative flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg whitespace-nowrap transition-all duration-200 z-10 
+                                    className={`relative flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg whitespace-nowrap transition-all duration-200 z-10 
                                         ${isActive ? 'text-white' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50'}`}
                                 >
                                     {isActive && (
@@ -279,7 +366,7 @@ export function ResultsDashboard() {
                                         />
                                     )}
                                     <Icon size={16} className={isActive ? 'text-brand-400' : ''} />
-                                    {tab.label}
+                                    <span className="hidden xs:inline">{tab.label}</span>
                                 </button>
                             );
                         })}
@@ -288,7 +375,7 @@ export function ResultsDashboard() {
             </header>
 
             {/* Content Portal */}
-            <main ref={dashboardRef} className="max-w-7xl mx-auto px-6 py-8">
+            <main ref={dashboardRef} className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8">
                 <AnimatePresence mode="wait">
                     <motion.div
                         key={activeTab}

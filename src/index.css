@@ -236,3 +236,26 @@ body {
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
+
+/* Hide scrollbar on tab strip while keeping scroll functionality */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Mobile-specific: reduce glass-card padding and disable hover lift */
+@media (max-width: 639px) {
+  .glass-card {
+    padding: 16px;
+    border-radius: 12px;
+  }
+  .glass-card:hover {
+    transform: none;
+  }
+}
+
+/* Custom xs breakpoint (480px+) for Tailwind v4 */
+@custom-variant xs (@media (min-width: 480px));
