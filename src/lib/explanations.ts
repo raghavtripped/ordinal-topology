@@ -124,6 +124,54 @@ export const explanations: Record<string, MetricExplanation> = {
         highMeaning: 'Fragile — removal of key individuals significantly disrupts group connectivity.',
         lowMeaning: 'Robust — the group maintains connectivity even when individuals are removed.',
     },
+    majorityNetwork: {
+        definition: 'Visualizes the hierarchy of majority preferences. Edges point from the loser to the majority-preferred individual. Node size indicates brokerage power (Betweenness).',
+        whyMatters: 'Shows the overall organic power structure, cliques, and whether preferences form strict hierarchies or unstable cycles.',
+        highMeaning: '',
+        lowMeaning: '',
+    },
+    nashRisk: {
+        definition: 'Measures the proportion of triads that form Condorcet cycles (rock-paper-scissors loops).',
+        whyMatters: 'Identifies the risk of instability. High cycle density means no outcome is safe from being defeated by another coalition (lack of Nash Equilibrium).',
+        highMeaning: 'High risk of constant regime change or shifting alliances.',
+        lowMeaning: 'Stable equilibrium — clear hierarchical order resistant to coalition disruptions.',
+    },
+    networkFragility: {
+        definition: 'The average loss in network reachability when a single individual is removed from the preference graph.',
+        whyMatters: 'Highlights structural vulnerability. If the network shatters upon removing one person, that person holds outsized structural power.',
+        highMeaning: 'Highly vulnerable structure dependent on key load-bearing individuals.',
+        lowMeaning: 'Resilient and flat structure; power and connections are decentralized.',
+    },
+    coalitions: {
+        definition: 'Factions composed of 3+ individuals who all rank each other in their top-third of preferences.',
+        whyMatters: 'Maps the actual battle lines of group politics. These are the tightly knit alliances that can act as a voting bloc.',
+        highMeaning: '',
+        lowMeaning: '',
+    },
+    clusterCohesion: {
+        definition: 'The average relative preference ranking members of a detected cluster have for one another.',
+        whyMatters: 'Distinguishes between clusters of convenience versus highly bonded ideologically pure factions.',
+        highMeaning: 'Cluster members deeply prefer each other over outsiders (strong ingroup bias).',
+        lowMeaning: 'Cluster members merely tolerate each other (weak alliance of convenience).',
+    },
+    lossAversion: {
+        definition: 'Counts extreme downward asymmetries where an individual ranks someone highly, but is ranked terribly in return (rank difference > N/3).',
+        whyMatters: 'Serves as a proxy for unrequited social capital investment, typically triggering loss aversion and resentment.',
+        highMeaning: 'Individual experiences many unreciprocated high evaluations; high risk of social withdrawal or realignment.',
+        lowMeaning: 'Individual\'s evaluations are mostly reciprocated; low social tension.',
+    },
+    powerVacuum: {
+        definition: 'Simulates the change in Borda scores for all remaining participants if the most preferred individual is removed from the system.',
+        whyMatters: 'Reveals who relies on the leader (they lose score) and who is suppressed by the leader (they gain score when the leader is removed).',
+        highMeaning: 'Positive shift (+): Opportunist who stands to gain power in a vacuum.',
+        lowMeaning: 'Negative shift (-): Dependent who relies on the leader\'s presence for their own status.',
+    },
+    individualEntropy: {
+        definition: 'Shannon entropy of the ranks RECEIVED by a single participant from all others. High entropy means they received a wide, even spread of ranks.',
+        whyMatters: 'Measures status uncertainty. Do people agree on this person\'s standing, or are they a wildcard?',
+        highMeaning: 'High uncertainty — group is completely divided on their status (e.g. loved by some, hated by others, ignored by rest).',
+        lowMeaning: 'High certainty — group universally agrees on their exact rank position.',
+    },
 };
 
 export function explainMetric(key: string): MetricExplanation {

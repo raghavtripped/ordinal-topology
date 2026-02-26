@@ -583,7 +583,10 @@ function NetworkTab({ analytics, participants, ballots, nameMap, networkRef, sta
             {/* Main network */}
             <div className="glass-card p-0 overflow-hidden" ref={networkRef}>
                 <div className="p-5 border-b border-slate-800/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/50">
-                    <div className="section-header mb-0 text-white">Majority Preference Directed Graph</div>
+                    <div className="section-header mb-0 text-white flex items-center justify-between">
+                        <span>Majority Preference Directed Graph</span>
+                        <ExplainPanel metricKey="majorityNetwork" />
+                    </div>
                     <div className="flex items-center gap-3 bg-slate-900 py-1.5 px-3 rounded-lg border border-slate-800">
                         <label className="flex items-center gap-2 text-xs font-bold text-slate-400 cursor-pointer">
                             <input type="checkbox" checked={showCycles} onChange={e => setShowCycles(e.target.checked)}
@@ -765,27 +768,33 @@ function StabilityTab({ analytics, nameMap }: any) {
                     value={analytics.isTournamentAcyclic ? 'Acyclic' : 'Cyclic'}
                     sub={analytics.isTournamentAcyclic ? 'Highly stable power structure' : 'Unstable circular triad(s) exist'}
                     highlight={analytics.isTournamentAcyclic ? 'good' : 'bad'}
+                    metricKey="tournament"
                 />
                 <MetricCard
                     label="Nash Equilibrium Risk (TCE)"
                     value={analytics.cycleDensity.toFixed(3)}
                     sub="Triadic cycle density ratio"
                     highlight={analytics.cycleDensity < 0.1 ? 'good' : analytics.cycleDensity < 0.3 ? 'warn' : 'bad'}
+                    metricKey="nashRisk"
                 />
                 <MetricCard
                     label="Network Fragility"
                     value={analytics.structuralFragility.toFixed(3)}
                     sub="Avg edge destruction per node loss"
                     highlight={analytics.structuralFragility < 0.2 ? 'good' : analytics.structuralFragility < 0.5 ? 'warn' : 'bad'}
+                    metricKey="networkFragility"
                 />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Coalitions */}
                 <div className="glass-card">
-                    <div className="section-header text-brand-400">
-                        <Shield size={14} className="mr-1 inline -mt-0.5" />
-                        Identified Power Coalitions
+                    <div className="section-header text-brand-400 flex items-center justify-between">
+                        <div>
+                            <Shield size={14} className="mr-1 inline -mt-0.5" />
+                            Identified Power Coalitions
+                        </div>
+                        <ExplainPanel metricKey="coalitions" />
                     </div>
                     {analytics.coalitions.length === 0 ? (
                         <div className="text-center py-6 border border-slate-800 border-dashed rounded-xl bg-slate-900/30">
@@ -811,9 +820,12 @@ function StabilityTab({ analytics, nameMap }: any) {
 
                 {/* Subgroup cohesion */}
                 <div className="glass-card">
-                    <div className="section-header text-teal-400">
-                        <Network size={14} className="mr-1 inline -mt-0.5" />
-                        Cluster Cohesion Gravity
+                    <div className="section-header text-teal-400 flex items-center justify-between">
+                        <div>
+                            <Network size={14} className="mr-1 inline -mt-0.5" />
+                            Cluster Cohesion Gravity
+                        </div>
+                        <ExplainPanel metricKey="clusterCohesion" />
                     </div>
                     <div className="space-y-4">
                         {Object.entries(analytics.subgroupCohesion).map(([comm, cohesion]) => (
@@ -959,7 +971,7 @@ function SimulationTab({ analytics, nameMap, participants }: any) {
                         valueLabel="Entropy Bits"
                         color="#f97316"
                     />
-                    <ExplainPanel metricKey="entropy" />
+                    <ExplainPanel metricKey="individualEntropy" />
                 </div>
 
                 <div className="glass-card">
@@ -975,13 +987,17 @@ function SimulationTab({ analytics, nameMap, participants }: any) {
                         valueLabel="Spikes"
                         color="#f43f5e"
                     />
+                    <ExplainPanel metricKey="lossAversion" />
                 </div>
             </div>
 
             <div className="glass-card border-brand-500/20 bg-brand-950/5">
-                <div className="section-header text-brand-400">
-                    <Network size={14} className="mr-1 inline -mt-0.5" />
-                    Power Vacuum Simulation : Decapitation Event (Removing [{nameMap[topId]}])
+                <div className="section-header text-brand-400 flex items-center justify-between">
+                    <div>
+                        <Network size={14} className="mr-1 inline -mt-0.5" />
+                        Power Vacuum Simulation : Decapitation Event (Removing [{nameMap[topId]}])
+                    </div>
+                    <ExplainPanel metricKey="powerVacuum" />
                 </div>
                 <div className="flex flex-col md:flex-row gap-6">
                     <div className="md:w-1/3 bg-slate-950/80 rounded-xl p-5 border border-slate-800/80 flex flex-col justify-center">

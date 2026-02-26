@@ -800,7 +800,7 @@ export function computeIndividualEntropy(
     for (const [id, ranks] of Object.entries(receivedRanks)) {
         // Build histogram of ranks 1..n-1
         const hist = Array(n).fill(0);
-        for (const r of ranks) { if (r >= 1 && r < n) hist[r - 1]++; }
+        for (const r of ranks) { if (r >= 1 && r <= n) hist[r - 1]++; }
         result[id] = computeEntropy(hist);
     }
     return result;

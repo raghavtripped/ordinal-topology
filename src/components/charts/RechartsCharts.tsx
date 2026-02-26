@@ -11,7 +11,7 @@ interface BordaBarChartProps {
 
 export function BordaBarChart({ scores, names, marginalizedIds }: BordaBarChartProps) {
     const data = Object.entries(scores)
-        .sort((a, b) => b[1] - a[1])
+        .sort((a, b) => a[1] - b[1])
         .map(([id, score]) => ({
             id,
             name: names[id] || id,
@@ -177,7 +177,7 @@ export function MetricBarChart({
     color = '#38bdf8',
     height = 250,
 }: MetricBarChartProps) {
-    const sorted = [...data].sort((a, b) => b.value - a.value);
+    const sorted = [...data].sort((a, b) => a.value - b.value);
     const maxV = Math.max(...sorted.map(d => d.value), 0.001);
     const chartData = sorted.map(d => ({ ...d, value: parseFloat(d.value.toFixed(3)) }));
 
