@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { AppState, Ballot, Participant } from '../types';
 import { saveState, loadState } from '../lib/storage';
+import * as LZString from 'lz-string';
 
 interface AppContextType {
     state: AppState;
@@ -17,14 +18,36 @@ const AppContext = createContext<AppContextType | null>(null);
 
 const DEFAULT_STATE: AppState = { participants: [], ballots: [] };
 
+function getInitialStateAndPage() {
+    // 1. Check for URL Hash Archive (Shared Link)
+    try {
+        if (window.location.hash.startsWith('#archive=')) {
+            const compressed = window.location.hash.substring(9);
+            const decompressed = LZString.decompressFromEncodedURIComponent(compressed);
+            if (decompressed) {
+                const parsed = JSON.parse(decompressed);
+                if (parsed.participants && parsed.ballots) {
+                    // Clean up URL without triggering navigation
+                    window.history.replaceState(null, '', window.location.pathname);
+                    return { state: parsed, page: 'results' as const };
+                }
+            }
+        }
+    } catch (e) {
+        console.error("Failed to parse archive link", e);
+    }
+
+    // 2. Check for Local Storage
+    const s = loadState();
+    if (!s || s.participants.length < 2) return { state: s || DEFAULT_STATE, page: 'setup' as const };
+    if (s.ballots.length < s.participants.length) return { state: s, page: 'ranking' as const };
+    return { state: s, page: 'results' as const };
+}
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
-    const [state, setState] = useState<AppState>(() => loadState() || DEFAULT_STATE);
-    const [page, setPage] = useState<'setup' | 'ranking' | 'results'>(() => {
-        const s = loadState();
-        if (!s || s.participants.length < 2) return 'setup';
-        if (s.ballots.length < s.participants.length) return 'ranking';
-        return 'results';
-    });
+    const initialState = getInitialStateAndPage();
+    const [state, setState] = useState<AppState>(initialState.state);
+    const [page, setPage] = useState<'setup' | 'ranking' | 'results'>(initialState.page);
 
     useEffect(() => {
         saveState(state);

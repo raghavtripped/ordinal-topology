@@ -12,12 +12,13 @@ import {
 } from '../components/charts/RechartsCharts';
 import { explainMetric, generateNarrativeSummary, explanations } from '../lib/explanations';
 import {
-    ChevronLeft, Download, FileText, Image,
+    ChevronLeft, Download, FileText, Image, Link as LinkIcon, Check,
     Network, Scale, Zap, Brain, Shield, Info, AlertCircle,
     CheckCircle, XCircle, TrendingUp, TrendingDown, LayoutDashboard
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas-pro';
+import * as LZString from 'lz-string';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // ── Explanation Panel (Tooltip) ────────────────────────────────
@@ -100,6 +101,7 @@ export function ResultsDashboard() {
     const analytics = useAnalytics(participants, ballots);
     const [activeTab, setActiveTab] = useState('overview');
     const [isExporting, setIsExporting] = useState(false);
+    const [copiedShareLink, setCopiedShareLink] = useState(false);
     const dashboardRef = useRef<HTMLDivElement>(null);
     const networkRef = useRef<HTMLDivElement>(null);
     const exportContainerRef = useRef<HTMLDivElement>(null);
@@ -157,6 +159,20 @@ export function ResultsDashboard() {
         const a = document.createElement('a'); a.href = url;
         a.download = 'network_graph.png'; a.click();
     }, []);
+
+    const handleShareLink = useCallback(async () => {
+        try {
+            const dataToEncode = JSON.stringify({ participants, ballots });
+            const compressed = LZString.compressToEncodedURIComponent(dataToEncode);
+            const url = `${window.location.origin}${window.location.pathname}#archive=${compressed}`;
+            await navigator.clipboard.writeText(url);
+            setCopiedShareLink(true);
+            setTimeout(() => setCopiedShareLink(false), 2000);
+        } catch (err) {
+            console.error('Failed to copy share link', err);
+            alert('Failed to copy link to clipboard. Please try again.');
+        }
+    }, [participants, ballots]);
 
     if (!analytics) {
         return (
@@ -231,6 +247,10 @@ export function ResultsDashboard() {
                         </button>
                         <button onClick={exportNetworkPNG} className="flex items-center gap-1.5 text-xs font-semibold bg-slate-900/80 hover:bg-slate-800 text-brand-400 px-3 py-2 rounded-lg border border-slate-800 hover:border-brand-500/50 hover:shadow-[0_0_10px_rgba(56,189,248,0.2)] transition-all">
                             <Image size={14} /> PNG
+                        </button>
+                        <button onClick={handleShareLink} className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border transition-all ${copiedShareLink ? 'bg-emerald-900/40 text-emerald-400 border-emerald-500/50' : 'bg-slate-900/80 hover:bg-slate-800 text-brand-400 border-slate-800 hover:border-brand-500/50 hover:shadow-[0_0_10px_rgba(56,189,248,0.2)]'}`}>
+                            {copiedShareLink ? <Check size={14} /> : <LinkIcon size={14} />}
+                            {copiedShareLink ? 'Copied!' : 'Copy Link'}
                         </button>
                         <button onClick={reset} className="ml-2 flex items-center gap-1.5 text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-400 px-3 py-2 rounded-lg border border-red-500/20 transition-all">
                             Restart
