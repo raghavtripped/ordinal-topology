@@ -50,14 +50,16 @@ export function NetworkGraph({ participants, communities, betweenness, condorcet
         // Reconstruct links from pairwise matrix (majority preference graph)
         const links: { source: string; target: string; weight: number }[] = [];
 
-        for (let i = 0; i < participants.length; i++) {
-            for (let j = i + 1; j < participants.length; j++) {
-                const winsI = pairwiseMatrix[i][j];
-                const winsJ = pairwiseMatrix[j][i];
-                if (winsI > winsJ) {
-                    links.push({ source: participants[i].id, target: participants[j].id, weight: 1 });
-                } else if (winsJ > winsI) {
-                    links.push({ source: participants[j].id, target: participants[i].id, weight: 1 });
+        if (pairwiseMatrix) {
+            for (let i = 0; i < participants.length; i++) {
+                for (let j = i + 1; j < participants.length; j++) {
+                    const winsI = pairwiseMatrix[i] && pairwiseMatrix[i][j] ? pairwiseMatrix[i][j] : 0;
+                    const winsJ = pairwiseMatrix[j] && pairwiseMatrix[j][i] ? pairwiseMatrix[j][i] : 0;
+                    if (winsI > winsJ) {
+                        links.push({ source: participants[i].id, target: participants[j].id, weight: 1 });
+                    } else if (winsJ > winsI) {
+                        links.push({ source: participants[j].id, target: participants[i].id, weight: 1 });
+                    }
                 }
             }
         }
@@ -292,7 +294,7 @@ export function NetworkGraph({ participants, communities, betweenness, condorcet
         return () => {
             tooltip.remove();
         };
-    }, [participants, communities, condorcetCycles, betweenness]);
+    }, [participants, communities, condorcetCycles, betweenness, pairwiseMatrix]);
 
     useEffect(() => {
         const cleanup = draw();
